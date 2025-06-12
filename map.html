@@ -1,419 +1,453 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Vietnam Administrative Boundary Dashboard</title>
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  <style>
-    /* ---------- GLOBAL ---------- */
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{
-      font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
-      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-      min-height:100vh;color:#333
-    }
-    .header{background:#fffE;backdrop-filter:blur(10px);
-      padding:1rem 2rem;border-bottom:3px solid #e74c3c;
-      box-shadow:0 4px 20px rgba(0,0,0,.1)}
-    .header h1{font-size:2rem;font-weight:700;display:flex;gap:10px;color:#2c3e50}
-    .header h1 i{color:#e74c3c}
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Vietnam Administrative Boundary Dashboard</title>
 
-    /* ---------- LAYOUT ---------- */
-    .container{
-      max-width:1400px;margin:0 auto;padding:2rem;
-      display:grid;grid-template-columns:1fr 2fr;gap:2rem;
-      height:calc(100vh - 120px)
-    }
-    .sidebar,.map-container{
-      background:#fffE;backdrop-filter:blur(10px);border-radius:15px;
-      box-shadow:0 10px 40px rgba(0,0,0,.1)
-    }
-    .sidebar{padding:2rem;overflow-y:auto}
-    .map-container{padding:1rem;position:relative}
-    #map{height:100%;border-radius:10px;
-         box-shadow:inset 0 2px 10px rgba(0,0,0,.1)}
+<!-- Leaflet & FontAwesome -->
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"/>
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
 
-    /* ---------- COMPONENTS ---------- */
-    .control-group{
-      margin-bottom:2rem;padding:1.5rem;
-      background:linear-gradient(135deg,#f8f9fa,#e9ecef);
-      border-radius:10px;border-left:4px solid #e74c3c
-    }
-    .control-group h3{
-      display:flex;gap:8px;margin-bottom:1rem;font-size:1.2rem;color:#2c3e50
-    }
-    .file-input-group{display:flex;flex-direction:column;gap:10px}
-    .file-input-wrapper{
-      background:linear-gradient(135deg,#3498db,#2980b9);
-      color:#fff;padding:12px 20px;border-radius:8px;text-align:center;
-      cursor:pointer;transition:.3s}
-    .file-input-wrapper:hover{
-      transform:translateY(-2px);
-      box-shadow:0 5px 15px rgba(52,152,219,.4)}
-    .toggle-group{display:flex;gap:10px;margin:1rem 0}
-    .toggle-btn{flex:1;padding:12px;border:none;border-radius:8px;
-      font-weight:600;background:#ecf0f1;color:#7f8c8d;cursor:pointer;transition:.3s}
-    .toggle-btn.active{
-      background:linear-gradient(135deg,#e74c3c,#c0392b);
-      color:#fff;transform:translateY(-2px);
-      box-shadow:0 5px 15px rgba(231,76,60,.4)}
-    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
-    .stat-card{background:linear-gradient(135deg,#f39c12,#d68910);color:#fff;
-      padding:1rem;border-radius:10px;text-align:center;
-      box-shadow:0 5px 15px rgba(243,156,18,.3)}
-    .stat-card h4{font-size:.9rem;margin-bottom:.5rem;opacity:.9}
-    .stat-card .value{font-size:1.5rem;font-weight:bold}
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
-    .data-table{max-height:300px;overflow-y:auto;border-radius:8px;background:#fff;
-      border:1px solid #ddd}
-    .data-table table{width:100%;border-collapse:collapse}
-    .data-table th,.data-table td{padding:8px 12px;border-bottom:1px solid #eee;font-size:.9rem}
-    .data-table th{
-      background:linear-gradient(135deg,#34495e,#2c3e50);color:#fff;position:sticky;top:0}
-    .data-table tr:nth-child(even){background:#f8f9fa}
-    .data-table tr:hover{background:#e3f2fd;cursor:pointer}
+<link rel="icon" type="image/png"
+      href="https://raw.githubusercontent.com/lqtue/LacaProvinceMap/main/laca%20single.png"/>
 
-    .download-section{
-      background:linear-gradient(135deg,#27ae60,#229954);color:#fff;
-      padding:2rem;border-radius:10px;margin-top:2rem}
-    .download-section a{
-      display:inline-block;padding:12px 20px;border-radius:8px;background:#fff;
-      color:#229954;font-weight:600;text-decoration:none;
-      box-shadow:0 4px 10px rgba(0,0,0,.15)}
+<style>
+:root{
+  --brand-bg:#fffaf0;
+  --brand-red:#8b352a;
+  --brand-red-light:#d55345;
+}
 
-    .province-info{display:none;background:#fff;padding:1rem;border-radius:8px;
-      margin:1rem 0;border-left:4px solid #3498db}
-    .province-info.show{display:block;animation:fadeIn .3s}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}
-                      to{opacity:1;transform:translateY(0)}}
+/* ---------- GLOBAL ---------- */
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+  background:var(--brand-bg);color:#333;min-height:100vh
+}
+.header{
+  background:var(--brand-bg);padding:1rem 2rem;
+  border-bottom:3px solid var(--brand-red);
+  box-shadow:0 4px 20px rgba(0,0,0,.1)
+}
+.header h1{font-size:2rem;font-weight:700;display:flex;gap:10px;color:#2c3e50}
+.header h1 i{color:var(--brand-red)}
+.header h1 .logo{
+  height:38px;
+  margin-right:8px;
+}
 
-    .legend{position:absolute;bottom:20px;left:20px;background:#fffE;padding:15px;
-      border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.2);z-index:1000}
-    .legend-item{display:flex;align-items:center;gap:10px;margin-bottom:5px}
-    .legend-color{width:20px;height:15px;border-radius:3px;border:1px solid #333}
+/* ---------- LAYOUT ---------- */
+.container{position:relative;height:calc(100vh - 120px)}
+#map{position:absolute;top:0;left:0;right:0;bottom:0;border-radius:10px}
 
-    @media(max-width:768px){
-      .container{grid-template-columns:1fr;height:auto}
-      .header h1{font-size:1.5rem}
-      .stats-grid{grid-template-columns:1fr}
-    }
-  </style>
+/* ---------- FLOATING CONTROLS ---------- */
+.map-controls{
+  position:absolute;top:14px;left:14px;z-index:1000;
+  display:flex;flex-direction:column;gap:10px
+}
+.map-controls .box{
+  background:#fff;padding:6px 10px;border-left:4px solid var(--brand-red);
+  border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.15)
+}
+.switch{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--brand-red)}
+.switch .label{font-size:.9rem}
+.switch input{display:none}
+.switch .slider{
+  width:46px;height:22px;border-radius:12px;background:#ccc;position:relative;cursor:pointer;transition:.3s}
+.switch .slider::before{
+  content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);transition:.3s}
+.switch input:checked + .slider{background:var(--brand-red-light)}
+.switch input:checked + .slider::before{transform:translateX(24px)}
+
+.download-btn{
+  display:inline-block;padding:8px 14px;border-radius:8px;background:var(--brand-red-light);
+  color:#fff;font-weight:600;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.25)
+}
+
+/* ---------- POPUP ---------- */
+.leaflet-popup-content-wrapper{
+  background:#fff;border:1px solid var(--brand-red);border-radius:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25)
+}
+.leaflet-popup-close-button{font-size:20px !important;padding:4px 6px}
+.leaflet-popup-content{padding:10px 14px !important;font-size:14px;line-height:1.45}
+.popup-title{margin:0 0 6px;font-weight:700;color:var(--brand-red)}
+.popup-row{display:flex;gap:6px;margin-bottom:4px}
+
+.popup-row .icon{width:20px;text-align:center}
+
+/* Permanent province name labels on map */
+.province-label {
+  font-size: 12px; /* Base size, JS will adjust with zoom */
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 3px #000, 0 0 5px #000; /* Adjusted for better visibility on satellite */
+  pointer-events: none;
+  white-space: nowrap; /* Prevents ugly wrapping for multi-word names */
+}
+
+/* Remove background/border for province labels */
+.leaflet-tooltip.province-label {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.leaflet-tooltip.province-label::after {
+  display: none; /* remove tooltip arrow */
+}
+
+/* ---------- COMPARE PANEL ---------- */
+.compare-bottom{
+  position:absolute;left:0;right:0;bottom:0;max-height:40%;overflow:auto;
+  background:#fff;border-top:3px solid var(--brand-red);
+  box-shadow:0 -6px 18px rgba(0,0,0,.25);padding:12px 14px;
+  border-radius:10px 10px 0 0;z-index:900
+}
+#comparePanel table,#comparePanel th,#comparePanel td{border:1px solid #ddd}
+#comparePanel th,#comparePanel td{padding:4px 6px;text-align:center}
+#comparePanel th{background:#f2f2f2}
+.compare-remove{cursor:pointer;color:#c00;font-weight:bold}
+.compare-remove:hover{text-decoration:underline}
+
+/* hide default zoom buttons */
+.leaflet-control-zoom{display:none !important}
+</style>
 </head>
 <body>
   <div class="header">
-    <h1><i class="fas fa-map-marked-alt"></i>Bản đồ Ranh giới Hành chính Việt Nam</h1>
+    <h1>
+      <a href="https://laca.city" target="_blank" rel="noopener">
+        <img src="https://raw.githubusercontent.com/lqtue/LacaProvinceMap/main/laca%20full.png"
+             alt="LACA logo" class="logo">
+      </a>
+      Bản đồ Ranh giới Hành chính Việt Nam
+    </h1>
   </div>
 
   <div class="container">
-    <!-- ========== SIDEBAR ========== -->
-    <div class="sidebar">
-      <!-- Sample data -->
-      <div class="control-group">
-        <h3><i class="fas fa-database"></i>Dữ liệu mẫu</h3>
-        <div class="file-input-group">
-          <div class="file-input-wrapper" onclick="loadLocalFile('oldBoundary')">
-            <i class="fas fa-eye"></i> Xem ranh giới cũ
-          </div>
-          <div class="file-input-wrapper" onclick="loadLocalFile('newBoundary')">
-            <i class="fas fa-eye"></i> Xem ranh giới mới
-          </div>
-          <div class="file-input-wrapper"
-               style="background:linear-gradient(135deg,#27ae60,#229954)"
-               onclick="loadAllLocalFiles()">
-            <i class="fas fa-play"></i> Tải tất cả dữ liệu
-          </div>
-        </div>
-      </div>
+    <div id="map"></div>
 
-      <!-- Local upload -->
-      <div class="control-group">
-        <h3><i class="fas fa-upload"></i>Tải tệp GeoJSON cục bộ</h3>
-        <div class="file-input-group">
-          <!-- OLD -->
-          <label class="file-input-wrapper">
-            <input type="file" id="localOld" accept=".geojson,.json" style="display:none">
-            <i class="fas fa-file-upload"></i> Chọn ranh giới cũ
-          </label>
-          <!-- NEW -->
-          <label class="file-input-wrapper">
-            <input type="file" id="localNew" accept=".geojson,.json" style="display:none">
-            <i class="fas fa-file-upload"></i> Chọn ranh giới mới
-          </label>
-        </div>
+    <!-- floating controls -->
+    <div class="map-controls">
+      <div class="box">
+        <label class="switch">
+          <span class="label">Cũ</span>
+          <input type="checkbox" id="switchBoundary">
+          <span class="slider"></span>
+          <span class="label">Mới</span>
+        </label>
       </div>
-
-      <!-- Toggle -->
-      <div class="control-group">
-        <h3><i class="fas fa-eye"></i>Hiển thị</h3>
-        <div class="toggle-group">
-          <button id="toggleOld" class="toggle-btn active">Ranh giới cũ</button>
-          <button id="toggleNew" class="toggle-btn active">Ranh giới mới</button>
-        </div>
-      </div>
-
-      <!-- Stats -->
-      <div class="control-group">
-        <h3><i class="fas fa-chart-bar"></i>Thống kê</h3>
-        <div class="stats-grid">
-          <div class="stat-card"><h4>Tổng số tỉnh/TP</h4><div id="totalProvinces" class="value">--</div></div>
-          <div class="stat-card"><h4>Dân số</h4><div id="totalPopulation" class="value">--</div></div>
-          <div class="stat-card"><h4>Diện tích</h4><div id="totalArea" class="value">--</div></div>
-          <div class="stat-card"><h4>GRDP 2024</h4><div id="totalGRDP" class="value">--</div></div>
-        </div>
-      </div>
-
-      <!-- Province info -->
-      <div id="provinceInfo" class="province-info">
-        <h4 id="provinceName"></h4>
-        <div id="provinceDetails"></div>
-      </div>
-
-      <!-- Table -->
-      <div class="control-group">
-        <h3><i class="fas fa-list"></i>Danh sách tỉnh/thành</h3>
-        <div id="dataTable" class="data-table">
-          <div class="loading"><i class="fas fa-spinner"></i><p>Đang tải dữ liệu...</p></div>
-        </div>
-      </div>
-
-      <!-- Google Form -->
-      <div class="download-section">
-        <h3><i class="fas fa-download"></i>Nhận bộ dữ liệu</h3>
-        <p>Vui lòng điền email trong biểu mẫu bên dưới để nhận liên kết tải:</p>
-        <a href="YOUR_GOOGLE_FORM_URL" target="_blank" rel="noopener">
-          <i class="fas fa-paper-plane"></i> Mở Google Form
-        </a>
-      </div>
+      <a class="download-btn" href="https://forms.gle/LBrKKwUsHGhkK5xQA" target="_blank" rel="noopener">
+        <i class="fas fa-download"></i> Tải dữ liệu
+      </a>
+      <button id="toggleCompare" class="download-btn" style="margin-top:6px;">
+        Hiện So sánh
+      </button>
     </div>
 
-    <!-- ========== MAP ========== -->
-    <div class="map-container">
-      <div id="map"></div>
-      <div class="legend">
-        <h4>Chú thích</h4>
-        <div class="legend-item"><div class="legend-color" style="background:#e74c3cB3"></div>Ranh giới cũ</div>
-        <div class="legend-item"><div class="legend-color" style="background:#3498dbB3"></div>Ranh giới mới</div>
-      </div>
+    <!-- comparison panel -->
+    <div id="comparePanel" class="compare-bottom" style="display:none">
+      <h3><i class="fas fa-balance-scale"></i> So sánh (0/5)</h3>
+      <div id="compareTable" style="font-size:13px"></div>
     </div>
   </div>
 
-  <!-- -------------------- JS -------------------- -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <script>
-  /* ========== GLOBAL VARS ========== */
-  let map, oldBoundaryLayer, newBoundaryLayer;
-  const boundaryData   = { old:null, new:null };
-  const allProvinceData = [];           // extracted from GeoJSON
+<!-- Leaflet -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/* ---------- DATA & CONFIG ---------- */
+const CONFIG = {
+  old:'https://raw.githubusercontent.com/lqtue/LacaProvinceMap/main/old.geojson',
+  new:'https://raw.githubusercontent.com/lqtue/LacaProvinceMap/main/new.geojson'
+};
+let map, oldLayer, newLayer;
+const dataStore = {old:null,new:null};
+let compareList=[];
 
-  /* ========== CONFIG ========== */
-  const CONFIG = {
-    files:{
-      oldBoundary:'/Users/airm1/Downloads/old.geojson',
-      newBoundary:'/Users/airm1/Downloads/new.geojson'
+/* ---------- HELPERS ---------- */
+const iconMap = {
+  "Tỉnh thành mới":"📍","Tỉnh thành cũ":"📍","TT hành chính":"📍",
+  "GRDP 2024 (tỷ VND)":"💰","Thu ngân sách 2024 (tỷ VND)":"💰",
+  "Diện tích (km2)":"🗺️","Dân số":"👥","ĐVHC cấp xã":"🏛️"
+};
+const numFmt = v=>{
+  const n=parseFloat(String(v).replace(/[, ]/g,'')); return isNaN(n)?v:n.toLocaleString('vi-VN');
+};
+const ATTRS = ["TT hành chính","Diện tích (km2)","Dân số",
+               "GRDP 2024 (tỷ VND)","Thu ngân sách 2024 (tỷ VND)","ĐVHC cấp xã"];
+
+const numAttrs = ["Diện tích (km2)","Dân số","GRDP 2024 (tỷ VND)","Thu ngân sách 2024 (tỷ VND)"];
+
+/* ---------- COLOUR PALETTE FOR PROVINCES ---------- */
+const palette = [
+  '#f4a582','#92c5de','#b2182b','#4393c3','#d6604d','#7b3294','#5aae61',
+  '#e08214','#018571','#e9a3c9','#a6dba0','#fddbc7','#c51b7d','#80cdc1',
+  '#8c510a','#35978f','#bf812d','#3f007d','#01665e','#762a83','#1b7837',
+  '#c2a5cf','#5f4690','#d8b365','#016c59','#8e0152','#ffbf00','#a6cee3',
+  '#b2df8a','#fdbf6f','#cab2d6','#ffffb3','#fb8072','#8dd3c7'
+];
+const colourCache = {};
+function getProvinceColour(name){
+  if(!colourCache[name]){
+    const idx = Object.keys(colourCache).length % palette.length;
+    colourCache[name] = palette[idx];
+  }
+  return colourCache[name];
+}
+
+/* quick hex darken (percent <0..1) */
+function darken(hex, pct){
+  const num=parseInt(hex.slice(1),16);
+  const r=Math.max(0,Math.floor(((num>>16)&255)*(1-pct))); // Added Math.floor
+  const g=Math.max(0,Math.floor(((num>>8)&255)*(1-pct)));  // Added Math.floor
+  const b=Math.max(0,Math.floor((num&255)*(1-pct)));       // Added Math.floor
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1); // Removed |0 for safety with floor
+}
+
+/* ---------- MAP ---------- */
+function init(){
+  /* basemap */
+  map = L.map('map',{zoomControl:false}).setView([16,108],6);
+  L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', // Satellite layer
+    {subdomains:['mt0','mt1','mt2','mt3'],attribution:'© Google'}).addTo(map);
+  oldLayer=L.layerGroup().addTo(map);
+  newLayer=L.layerGroup().addTo(map);
+
+  /* load GeoJSON */
+  Promise.all([
+    fetch(CONFIG.old).then(r=>r.json()),
+    fetch(CONFIG.new).then(r=>r.json())
+  ]).then(([gOld,gNew])=>{
+    dataStore.old=gOld;  dataStore.new=gNew;
+    drawLayer(gOld,'old'); drawLayer(gNew,'new');
+    if (gNew && gNew.features && gNew.features.length > 0) { // Check if gNew is valid
+        map.fitBounds(L.geoJSON(gNew).getBounds());
     }
-  };
-
-  /* Cố định thứ tự cột */
-  const FIELDS = [
-    'Tỉnh thành mới',
-    'Tỉnh thành cũ',
-    'TT hành chính',
-    'GRDP 2024 (tỷ VND)',
-    'Thu ngân sách 2024 (tỷ VND)',
-    'Diện tích (km2)',
-    'Dân số',
-    'ĐVHC cấp xã'
-  ];
-
-  /* ========== LOAD DATA ========== */
-  function loadLocalFile(type){
-    const url = CONFIG.files[type];
-    if(!url) return;
-    fetch(url).then(r=>r.json())
-      .then(geojson=>{
-        const key = type==='oldBoundary' ? 'old' : 'new';
-        boundaryData[key]=geojson;
-        displayBoundary(geojson,key);
-        extractDataFromGeoJSON(geojson,key);
-        updateDataTable();
-        updateStats();
-      })
-      .catch(err=>alert('Không thể tải '+url+': '+err));
-  }
-  const loadAllLocalFiles = () => ['oldBoundary','newBoundary'].forEach(loadLocalFile);
-
-  function extractDataFromGeoJSON(g,key){
-    if(!g.features) return;
-    g.features.forEach(f=>{
-      allProvinceData.push({...f.properties,boundaryType:key});
-    });
-  }
-
-  /* ---- LOCAL FILE UPLOAD ---- */
-  document.getElementById('localOld').addEventListener('change', e => handleLocalFile(e, 'old'));
-  document.getElementById('localNew').addEventListener('change', e => handleLocalFile(e, 'new'));
-
-  function handleLocalFile(ev, type) {
-    const file = ev.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const geojson = JSON.parse(e.target.result);
-        boundaryData[type] = geojson;
-        displayBoundary(geojson, type);
-        extractDataFromGeoJSON(geojson, type);
-        updateDataTable();
-        updateStats();
-      } catch (err) {
-        alert('File GeoJSON không hợp lệ: ' + err.message);
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  /* ========== MAP ========== */
-  function initMap(){
-    map = L.map('map').setView([16,108],6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {attribution:'© OpenStreetMap'}).addTo(map);
-    oldBoundaryLayer = L.layerGroup().addTo(map);
-    newBoundaryLayer = L.layerGroup().addTo(map);
-  }
-
-  function displayBoundary(gjson,type){
-    const color = type==='old' ? '#e74c3c' : '#3498db';
-    const layer = type==='old' ? oldBoundaryLayer : newBoundaryLayer;
-    layer.clearLayers();
-    L.geoJSON(gjson,{
-      style:{color,weight:2,opacity:.8,fillOpacity:.3},
-      onEachFeature:(feat,ly)=>{
-        const p=feat.properties;
-        let html='<div style="font-weight:bold;margin-bottom:5px">';
-        const nameField=['name','NAME','ten','TEN','province','PROVINCE']
-              .find(k=>p[k]);
-        html+=nameField ? p[nameField] : '';
-        html+='</div>';
-        Object.keys(p).forEach(k=>{
-          if(!['name','NAME','ten','TEN','province','PROVINCE'].includes(k))
-            html+=`<strong>${k}:</strong> ${p[k]}<br>`;
-        });
-        ly.bindPopup(html);
-        ly.on('click',()=>selectProvince(p));
-      }
-    }).addTo(layer);
-    if(gjson.features?.length){
-      map.fitBounds(L.geoJSON(gjson).getBounds());
-    }
-  }
-
-  /* ========== INTERACTION ========== */
-  function selectProvince(props){
-    const match = allProvinceData.find(r=>
-      FIELDS.some(k=> (r[k]||'').toString().toLowerCase() ===
-                      (props[k]||'').toString().toLowerCase())
-    );
-    showProvinceInfo(props,match);
-  }
-
-  function showProvinceInfo(props,data){
-    const infoDiv   = document.getElementById('provinceInfo');
-    const nameDiv   = document.getElementById('provinceName');
-    const detailsDiv= document.getElementById('provinceDetails');
-
-    nameDiv.textContent = props['Tỉnh thành mới']||
-                          props['Tỉnh thành cũ']||'Không xác định';
-
-    let html='';
-    if(data){
-      html+='<h5>Thông tin từ dữ liệu:</h5>';
-      FIELDS.forEach(k=>{
-        const v=data[k];
-        if(v) html+=`<p><strong>${k}:</strong> ${formatValue(k,v)}</p>`;
-      });
-    }
-    html+='<h5>Thông tin ranh giới:</h5>';
-    Object.entries(props).forEach(([k,v])=>{
-      if(v) html+=`<p><strong>${k}:</strong> ${v}</p>`;
-    });
-    detailsDiv.innerHTML = html;
-    infoDiv.classList.add('show');
-  }
-
-  /* ========== TABLE & STATS ========== */
-  function formatValue(k,v){
-    const lk=k.toLowerCase();
-    if(lk.includes('grdp')||lk.includes('thu ngân sách'))
-      return (+v).toLocaleString('vi-VN')+' tỷ VND';
-    if(lk.includes('diện tích'))
-      return (+v).toLocaleString('vi-VN')+' km²';
-    if(lk.includes('dân số'))
-      return parseInt(v).toLocaleString('vi-VN')+' người';
-    return v;
-  }
-
-  function updateDataTable(){
-    const container=document.getElementById('dataTable');
-    if(allProvinceData.length===0){
-      container.innerHTML='<div class="loading"><i class="fas fa-table"></i><p>Chưa có dữ liệu</p></div>';
-      return;
-    }
-    const headers=FIELDS;
-    let html='<table><thead><tr>';
-    headers.forEach(h=>html+=`<th>${h}</th>`); html+='</tr></thead><tbody>';
-    allProvinceData.forEach((row,i)=>{
-      html+=`<tr onclick="selectRowData(${i})">`;
-      headers.forEach(h=>html+=`<td>${formatValue(h,row[h]||'')}</td>`);
-      html+='</tr>';
-    });
-    html+='</tbody></table>';
-    container.innerHTML = html;
-  }
-  const selectRowData=i=>showProvinceInfo({},allProvinceData[i]);
-
-  function updateStats(){
-    let totalProvinces=0,totalPopulation=0,totalArea=0,totalGRDP=0;
-    if(allProvinceData.length){
-      const seen=new Set();
-      allProvinceData.forEach(r=>{
-        const name=r['Tỉnh thành mới']||r['Tỉnh thành cũ'];
-        if(name) seen.add(name.trim());
-        totalPopulation+=+r['Dân số']||0;
-        totalArea      +=+r['Diện tích (km2)']||0;
-        totalGRDP      +=+r['GRDP 2024 (tỷ VND)']||0;
-      });
-      totalProvinces=seen.size;
-    }
-    document.getElementById('totalProvinces').textContent=totalProvinces||'--';
-    document.getElementById('totalPopulation').textContent=
-      totalPopulation? (totalPopulation/1e6).toFixed(1)+'M':'--';
-    document.getElementById('totalArea').textContent=
-      totalArea? totalArea.toLocaleString('vi-VN')+' km²':'--';
-    document.getElementById('totalGRDP').textContent=
-      totalGRDP? totalGRDP.toLocaleString('vi-VN')+' tỷ':'--';
-  }
-
-  /* ========== TOGGLE BUTTONS ========== */
-  document.getElementById('toggleOld').onclick=function(){
-    this.classList.toggle('active');
-    map.hasLayer(oldBoundaryLayer)? map.removeLayer(oldBoundaryLayer)
-                                  : map.addLayer(oldBoundaryLayer);
-  };
-  document.getElementById('toggleNew').onclick=function(){
-    this.classList.toggle('active');
-    map.hasLayer(newBoundaryLayer)? map.removeLayer(newBoundaryLayer)
-                                  : map.addLayer(newBoundaryLayer);
-  };
-
-  /* ========== INIT ========== */
-  document.addEventListener('DOMContentLoaded',()=>{
-    initMap();
-    loadAllLocalFiles();
   });
-  </script>
+
+  /* switch */
+  const sw=document.getElementById('switchBoundary');
+  sw.checked=true; map.removeLayer(oldLayer);
+  sw.onchange=()=> {
+    if (sw.checked) {
+      map.removeLayer(oldLayer); map.addLayer(newLayer);
+    } else {
+      map.removeLayer(newLayer); map.addLayer(oldLayer);
+    }
+    updateLabels(); // Ensure labels are updated when layers switch
+  }
+}
+
+function drawLayer(gjson, type) {
+  const layer = type === 'old' ? oldLayer : newLayer;
+  L.geoJSON(gjson, {
+    style: feature => {
+      const provName = feature.properties["Tỉnh thành mới"] || feature.properties["Tỉnh thành cũ"];
+      const fillColor = getProvinceColour(provName);
+      return {
+        color: '#ffffff',
+        weight: 2,
+        opacity: 1,
+        fillColor: fillColor,
+        fillOpacity: 0.55
+      };
+    },
+    onEachFeature: (f, ly) => { // f is GeoJSON feature, ly is Leaflet layer
+      const p = f.properties;
+      const title = (p["Tỉnh thành mới"] || p["Tỉnh thành cũ"]) || 'Thông tin';
+      let html = `<h4 class="popup-title">${title}</h4>`;
+      [
+        "Tỉnh thành mới", "Tỉnh thành cũ", "TT hành chính",
+        ...ATTRS
+      ].forEach(k => {
+        if (p[k]) {
+          const val = numAttrs.includes(k) ? numFmt(p[k]) : p[k];
+          html += `<div class="popup-row"><span class="icon">${iconMap[k] || ''}</span>
+                 <strong>${k}:</strong> <span>${val}</span></div>`;
+        }
+      });
+      const key = (type === 'old' ? 'old:' : 'new:') + title;
+      html += `<button class="addCompare" data-key="${key}" data-type="${type}"
+             style="margin-top:8px;padding:6px 10px;border:none;border-radius:6px;
+                    background:var(--brand-red-light);color:#fff;cursor:pointer">
+             + Thêm so sánh</button>`;
+      ly.bindPopup(html);
+
+      const labelText = type === 'old'
+        ? (p["Tỉnh thành cũ"] || p["Tỉnh thành mới"])
+        : (p["Tỉnh thành mới"] || p["Tỉnh thành cũ"]);
+
+      let labelPosition = null;
+      const featureGeometry = f.geometry;
+
+      if (labelText && featureGeometry) { // Ensure labelText is not empty
+        let targetGeometryForLabel;
+
+        if (featureGeometry.type === 'Polygon') {
+          targetGeometryForLabel = featureGeometry;
+        } else if (featureGeometry.type === 'MultiPolygon') {
+          let largestPolygonGeo = null;
+          let maxArea = 0;
+          
+          featureGeometry.coordinates.forEach(polygonCoords => {
+            // turf.polygon expects coords, props, options. We only need coords for area calc.
+            // Create a simple polygon feature for turf.area and turf.pointOnFeature
+            const currentPolygon = turf.polygon(polygonCoords);
+            const area = turf.area(currentPolygon);
+            if (area > maxArea) {
+              maxArea = area;
+              largestPolygonGeo = currentPolygon.geometry; // Store the geometry of the largest one
+            }
+          });
+          targetGeometryForLabel = largestPolygonGeo;
+        }
+
+        if (targetGeometryForLabel) {
+          try {
+            // turf.pointOnFeature expects a GeoJSON Feature or Geometry.
+            // Using a feature is safer.
+            const turfCompatibleFeature = turf.feature(targetGeometryForLabel);
+            const pointOnSurface = turf.pointOnFeature(turfCompatibleFeature);
+            if (pointOnSurface && pointOnSurface.geometry && pointOnSurface.geometry.coordinates) {
+                 // pointOnSurface.geometry.coordinates is [lng, lat]
+                 // Leaflet needs [lat, lng]
+                 labelPosition = [pointOnSurface.geometry.coordinates[1], pointOnSurface.geometry.coordinates[0]];
+            }
+          } catch (e) {
+            console.error("Error calculating pointOnFeature for", title, e);
+            // Fallback to centroid if pointOnFeature fails
+            // This requires the layer 'ly' to be a L.GeoJSON layer, which it is.
+            const bounds = ly.getBounds();
+            if (bounds.isValid()) {
+                labelPosition = bounds.getCenter();
+            }
+          }
+        }
+      }
+      
+      const tooltipOptions = {
+        permanent: true,
+        direction: 'center',
+        className: 'province-label',
+        pane: 'tooltipPane' // Ensures tooltips are rendered in the correct pane
+      };
+
+      if (labelPosition) {
+        const customTooltip = L.tooltip(tooltipOptions)
+                               .setLatLng(labelPosition)
+                               .setContent(labelText);
+        ly.bindTooltip(customTooltip);
+      } else if (labelText) { // Fallback to default if no specific position or labelText is empty
+        // Default binding uses layer's centroid
+        ly.bindTooltip(labelText, tooltipOptions);
+      }
+
+      ly.on('mouseover', e => e.target.setStyle({ fillOpacity: 0.7, weight: 3 })); // Highlight fill and border
+      ly.on('mouseout',  e => e.target.setStyle({ fillOpacity: 0.55, weight: 2 })); // Revert to original style
+    }
+  }).addTo(layer);
+}
+
+/* ---------- COMPARISON ---------- */
+function updateCompare(){
+  const panel=document.getElementById('comparePanel');
+  const tgt=document.getElementById('compareTable');
+  if(!compareList.length){panel.style.display='none';return;}
+  panel.style.display='block';
+  panel.querySelector('h3').innerHTML=
+    `<i class="fas fa-balance-scale"></i> So sánh (${compareList.length}/5)`;
+  let html='<table style="width:100%;border-collapse:collapse"><tr><th>Thuộc tính</th>';
+  compareList.forEach(c=>{
+    const nm=c.props["Tỉnh thành mới"]||c.props["Tỉnh thành cũ"];
+    html+=`<th>${nm}<br><span style="font-size:11px;color:#666">(${c.layer==='old'?'Cũ':'Mới'})</span>
+           <span class="compare-remove" data-k="${c.key}">×</span></th>`;
+  });
+  html+='</tr>';
+  ATTRS.forEach(a=>{
+    html+=`<tr><td><strong>${a}</strong></td>`;
+    compareList.forEach(c=>{
+      let v=c.props[a]??'--';
+      if(numAttrs.includes(a)) v=numFmt(v);
+      html+=`<td>${v}</td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</table>';
+  tgt.innerHTML=html;
+  tgt.querySelectorAll('.compare-remove').forEach(x=>{
+    x.onclick=()=>{compareList=compareList.filter(c=>c.key!==x.dataset.k);updateCompare();};
+  });
+}
+
+/* ---------- POPUP EVENT ---------- */
+function attachCompare(){
+  map.on('popupopen',e=>{
+    const btn=e.popup._contentNode.querySelector('.addCompare');
+    if(!btn) return;
+    btn.onclick=()=>{
+      const props=e.popup._source.feature.properties;
+      const key=btn.dataset.key, layerType=btn.dataset.type;
+      if(compareList.find(c=>c.key===key)) return;
+      if(compareList.length>=5){alert('Tối đa 5 mục so sánh.');return;}
+      compareList.push({key,props,layer:layerType});
+      updateCompare();
+    };
+  });
+}
+
+// Adjust province-label visibility and size based on zoom level
+function updateLabels() {
+  const zoom = map.getZoom();
+  map.eachLayer(layer => { // Iterate through layers on the map
+    if (layer.getTooltip && layer.getTooltip()) { // Check if layer has a tooltip
+      const tooltip = layer.getTooltip();
+      if (tooltip.options.className && tooltip.options.className.includes('province-label')) {
+        const el = tooltip.getElement();
+        if (el) {
+          if (zoom < 7) { // Hide labels if zoomed out too far
+            el.style.display = 'none';
+          } else {
+            el.style.display = 'block';
+            // Calculate font size: clamp between 10px and 18px for better readability
+            const size = Math.min(Math.max(zoom * 1.5, 10), 18); // Adjusted multiplier and max size
+            el.style.fontSize = size + 'px';
+          }
+        }
+      }
+    }
+  });
+}
+
+
+/* ---------- START ---------- */
+document.addEventListener('DOMContentLoaded',()=>{
+  init(); attachCompare();
+  
+  map.whenReady(() => { // Ensure map is fully ready before initial label update
+    updateLabels();
+  });
+  map.on('zoomend', updateLabels);
+  map.on('layeradd layerremove', updateLabels); // Also update labels when layers are added/removed
+
+  const toggleBtn = document.getElementById('toggleCompare');
+  const comparePanel = document.getElementById('comparePanel');
+  toggleBtn.addEventListener('click', () => {
+    const isHidden = comparePanel.style.display === 'none' || comparePanel.style.display === '';
+    if (isHidden) {
+      comparePanel.style.display = 'block';
+      toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Ẩn So sánh'; // Changed text
+    } else {
+      comparePanel.style.display = 'none';
+      toggleBtn.innerHTML = '<i class="fas fa-eye"></i> Hiện So sánh'; // Changed text
+    }
+  });
+});
+</script>
 </body>
 </html>
