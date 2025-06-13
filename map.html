@@ -172,14 +172,29 @@ let compareList=[];
 
 /* ---------- HELPERS ---------- */
 const iconMap = {
-  "Tỉnh thành mới":"📍","Tỉnh thành cũ":"📍","TT hành chính":"📍",
-  "GRDP 2024 (tỷ VND)":"💰","Thu ngân sách 2024 (tỷ VND)":"💰",
-  "Diện tích (km2)":"🗺️","Dân số":"👥","ĐVHC cấp xã":"🏛️"
+  "Tỉnh thành mới": "📍",
+  "Tỉnh thành cũ": "📍",
+  "TT hành chính": "📍",
+  "GRDP 2024 (tỷ VND)": "💰",
+  "Thu ngân sách 2024 (tỷ VND)": "💰",
+  "Diện tích (km2)": "🗺️",
+  "Dân số": "👥",
+  "ĐVHC cấp xã": "🏛️"
+};
+
+// Override label positions for special provinces
+const labelOverrides = {
+  "Khánh Hoà": [12.248126980225129, 109.183807743233],   // mainland Nha Trang
+  "TP HCM": [10.801867540653552, 106.68102175169227],
+  "TP. Hồ Chí Minh": [10.801867540653552, 106.68102175169227]
 };
 const numFmt = v=>{
-  const n=parseFloat(String(v).replace(/[, ]/g,'')); return isNaN(n)?v:n.toLocaleString('vi-VN');
+  // Thay dấu phẩy thành dấu chấm nếu là số thập phân dạng '1111,1'
+  const s = String(v).replace(/,/g, '.').replace(/ /g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? v : n.toLocaleString('vi-VN');
 };
-const ATTRS = ["TT hành chính","Diện tích (km2)","Dân số",
+const ATTRS = ["Diện tích (km2)","Dân số",
                "GRDP 2024 (tỷ VND)","Thu ngân sách 2024 (tỷ VND)","ĐVHC cấp xã"];
 
 const numAttrs = ["Diện tích (km2)","Dân số","GRDP 2024 (tỷ VND)","Thu ngân sách 2024 (tỷ VND)"];
@@ -213,9 +228,12 @@ function darken(hex, pct){
 /* ---------- MAP ---------- */
 function init(){
   /* basemap */
-  map = L.map('map',{zoomControl:false}).setView([16,108],6);
+  map = L.map('map',{zoomControl:false, attributionControl:false}).setView([16,108],6);
   L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', // Satellite layer
-    {subdomains:['mt0','mt1','mt2','mt3'],attribution:'© Google'}).addTo(map);
+    {subdomains:['mt0','mt1','mt2','mt3']}).addTo(map);
+  // Add clean attribution without flag/emoji
+  L.control.attribution({prefix: ''}).addTo(map);
+  map.attributionControl.setPrefix('<a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a> | © Google');
   oldLayer=L.layerGroup().addTo(map);
   newLayer=L.layerGroup().addTo(map);
 
@@ -286,46 +304,36 @@ function drawLayer(gjson, type) {
       let labelPosition = null;
       const featureGeometry = f.geometry;
 
-      if (labelText && featureGeometry) { // Ensure labelText is not empty
-        let targetGeometryForLabel;
-
+      // Ưu tiên override vị trí nếu có
+      if (labelText && labelOverrides[labelText]) {
+        labelPosition = labelOverrides[labelText];
+      }
+      else if (labelText && featureGeometry) {
+        let labelPolygonFeature = null;
         if (featureGeometry.type === 'Polygon') {
-          targetGeometryForLabel = featureGeometry;
+          labelPolygonFeature = turf.polygon(featureGeometry.coordinates);
         } else if (featureGeometry.type === 'MultiPolygon') {
-          let largestPolygonGeo = null;
-          let maxArea = 0;
-          
+          let largestArea = 0;
           featureGeometry.coordinates.forEach(polygonCoords => {
-            // turf.polygon expects coords, props, options. We only need coords for area calc.
-            // Create a simple polygon feature for turf.area and turf.pointOnFeature
-            const currentPolygon = turf.polygon(polygonCoords);
-            const area = turf.area(currentPolygon);
-            if (area > maxArea) {
-              maxArea = area;
-              largestPolygonGeo = currentPolygon.geometry; // Store the geometry of the largest one
+            const poly = turf.polygon(polygonCoords);
+            const area = turf.area(poly);
+            if (area > largestArea) {
+              largestArea = area;
+              labelPolygonFeature = poly;
             }
           });
-          targetGeometryForLabel = largestPolygonGeo;
         }
-
-        if (targetGeometryForLabel) {
+        if (labelPolygonFeature) {
           try {
-            // turf.pointOnFeature expects a GeoJSON Feature or Geometry.
-            // Using a feature is safer.
-            const turfCompatibleFeature = turf.feature(targetGeometryForLabel);
-            const pointOnSurface = turf.pointOnFeature(turfCompatibleFeature);
+            const pointOnSurface = turf.pointOnFeature(labelPolygonFeature);
             if (pointOnSurface && pointOnSurface.geometry && pointOnSurface.geometry.coordinates) {
-                 // pointOnSurface.geometry.coordinates is [lng, lat]
-                 // Leaflet needs [lat, lng]
-                 labelPosition = [pointOnSurface.geometry.coordinates[1], pointOnSurface.geometry.coordinates[0]];
+              labelPosition = [pointOnSurface.geometry.coordinates[1], pointOnSurface.geometry.coordinates[0]];
             }
           } catch (e) {
-            console.error("Error calculating pointOnFeature for", title, e);
-            // Fallback to centroid if pointOnFeature fails
-            // This requires the layer 'ly' to be a L.GeoJSON layer, which it is.
+            // fallback: centroid
             const bounds = ly.getBounds();
             if (bounds.isValid()) {
-                labelPosition = bounds.getCenter();
+              labelPosition = bounds.getCenter();
             }
           }
         }
